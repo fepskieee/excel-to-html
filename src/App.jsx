@@ -1,50 +1,72 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import * as XLSX from "xlsx";
 
 export default function App() {
   const [data, setData] = useState([]);
-  const sheetId = '1Hp5fxHnonNc7ZhsyBcxkUmyXGjUM_GECHsTrfv--wq8'
-  const sheetName = 'Sheet2'
+  const [columns, setColumns] = useState([]);
 
-  const fetchData = async () => {
-    const res = await fetch(`https://opensheet.elk.sh/${sheetId}/${sheetName}`);
-    const json = await res.json();
-    setData(json);
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const binaryStr = new Uint8Array(evt.target.result)
+    .reduce((data, byte) => data + String.fromCharCode(byte), '');
+      const workbook = XLSX.read(binaryStr, { type: "binary" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      setData(jsonData);
+      setColumns(Object.keys(jsonData[0] || {}));
+    };
+    reader.readAsArrayBuffer(file);
   };
 
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-   if (data.length === 0) return <p className="p-4">Loading...</p>;
-
-  const columnHeaders = Object.keys(data[0]);
-
   return (
-    <div className="overflow-x-auto p-4">
-      <table className="table-auto border-collapse w-full border border-gray-300">
-        <thead className="bg-gray-100">
-          <tr>
-            {columnHeaders.map((key) => (
-              <th key={key} className="px-4 py-2 border border-gray-300 text-left font-medium">
-                {key}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((row, idx) => (
-            <tr key={idx} className="odd:bg-white even:bg-gray-50">
-              {columnHeaders.map((key) => (
-                <td key={key} className="px-4 py-2 border border-gray-300">
-                  {row[key]}
-                </td>
+    <div className="p-4 bg-gray-900 min-h-screen text-white">
+      <label className="inline-block mb-4">
+        <span className="text-sm font-semibold">Upload Excel File</span>
+        <input
+          type="file"
+          accept=".xlsx, .xls"
+          onChange={handleFileUpload}
+          className="block mt-2 w-full cursor-pointer border border-gray-600 rounded bg-gray-800 text-white px-4 py-2 hover:bg-gray-700"
+        />
+      </label>
+
+      {data.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="table-auto border-collapse w-full border border-gray-700 text-white">
+            <thead className="bg-gray-800">
+              <tr>
+                {columns.map((col) => (
+                  <th
+                    key={col}
+                    className="px-4 py-2 border border-gray-700 text-left font-medium text-gray-300"
+                  >
+                    {col}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((row, idx) => (
+                <tr key={idx} className="odd:bg-gray-900 even:bg-gray-800">
+                  {columns.map((col) => (
+                    <td
+                      key={col}
+                      className="px-4 py-2 border border-gray-700 text-gray-200"
+                    >
+                      {row[col]}
+                    </td>
+                  ))}
+                </tr>
               ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
